@@ -1,7 +1,8 @@
 schema: https://api.thegraph.com/subgraphs/name/connext/nxtp-goerli-staging
 documents: "src/**/!(*.d).{ts,tsx}"
+# schema: https://api.thegraph.com/subgraphs/name/connext/nxtp-goerli
 generates:
-  ./src/graphqlsdk.ts:
+  ./src/adapters/subgraph/graphqlsdk.ts:
     plugins:
       - typescript
       - typescript-operations
