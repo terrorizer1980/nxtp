@@ -1,20 +1,23 @@
-import { NonceManager } from "@ethersproject/experimental";
-import { BigNumber, BigNumberish, providers } from "ethers";
+import { BigNumber, BigNumberish, utils } from "ethers";
 
 import { TransactionServiceFailure } from "./error";
 
-export type MinimalTransaction = {
+export type ReadTransaction = {
   chainId: number;
   to: string;
-  value: BigNumberish;
   data: string;
-  from?: string;
 };
+
+export type WriteTransaction = {
+  from?: string;
+  value: BigNumberish;
+} & ReadTransaction;
 
 export type FullTransaction = {
   nonce?: number;
   gasPrice: BigNumber;
-} & MinimalTransaction;
+  gasLimit: BigNumber;
+} & WriteTransaction;
 
 export type CachedGas = {
   price: BigNumber;
@@ -26,9 +29,14 @@ export type CachedGas = {
  */
 export class GasPrice {
   private _gasPrice: BigNumber;
+  private readonly _maxGasPrice: BigNumber;
 
   constructor(public readonly baseValue: BigNumber, public readonly limit: BigNumber) {
     this._gasPrice = baseValue;
+    // Convert the gas limit into wei units using the base value.
+    const limitInWei = limit.mul(baseValue);
+    // Enforce a max gas price 20% higher than the base value as a buffer.
+    this._maxGasPrice = limitInWei.add(limitInWei.mul(6).div(5));
   }
 
   /**
@@ -51,28 +59,18 @@ export class GasPrice {
 
   /**
    * Check to see if the gas price provided is past the max. If so, throw.
-   * @param value Gas price to validate
+   * 
+   * @param value Gas price to validate.
+   * 
+   * @throws TransactionServiceFailure with reason MaxGasPriceReached if we exceed the limit.
    */
   private validate(value: BigNumber) {
-    if (value.gt(this.limit)) {
+    if (value.gt(this._maxGasPrice)) {
       throw new TransactionServiceFailure(TransactionServiceFailure.reasons.MaxGasPriceReached, {
-        gasPrice: value.toString(),
-        max: this.limit.toString(),
+        gasPrice: `${utils.formatUnits(value, "gwei")} gwei`,
+        gasLimit: `${utils.formatUnits(this.limit, "gwei")} gwei`,
+        max: `${utils.formatUnits(this._maxGasPrice, "gwei")} gwei`,
       });
-    }
-  }
-}
-
-/**
- * @classdesc We use this class to wrap NonceManager to ensure re-broadcast (tx's with defined nonce) is handled correctly.
- *
- */
-export class NxtpNonceManager extends NonceManager {
-  sendTransaction(transaction: providers.TransactionRequest): Promise<providers.TransactionResponse> {
-    if (transaction.nonce) {
-      return this.signer.sendTransaction(transaction);
-    } else {
-      return super.sendTransaction(transaction);
     }
   }
 }

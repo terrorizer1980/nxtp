@@ -110,6 +110,7 @@ export function handleTransactionPrepared(event: TransactionPrepared): void {
   transaction.amount = event.params.amount;
   transaction.shares = event.params.txData.shares;
   transaction.prepareCaller = event.params.caller;
+  transaction.prepareTransactionHash = event.transaction.hash;
   transaction.encryptedCallData = event.params.encryptedCallData.toHexString();
   transaction.encodedBid = event.params.encodedBid;
   transaction.bidSignature = event.params.bidSignature;
@@ -144,6 +145,7 @@ export function handleTransactionFulfilled(event: TransactionFulfilled): void {
   transaction!.signature = event.params.signature;
   transaction!.callData = event.params.callData.toHexString();
   transaction!.fulfillCaller = event.params.caller;
+  transaction!.fulfillTransactionHash = event.transaction.hash;
 
   transaction!.save();
 
@@ -174,6 +176,7 @@ export function handleTransactionCancelled(event: TransactionCancelled): void {
   transaction!.status = "Cancelled";
   transaction!.relayerFee = event.params.relayerFee;
   transaction!.cancelCaller = event.params.caller;
+  transaction!.cancelTransactionHash = event.transaction.hash;
 
   transaction!.save();
 

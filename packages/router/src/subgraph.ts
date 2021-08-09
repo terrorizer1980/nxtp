@@ -13,7 +13,7 @@ import {
 } from "@connext/nxtp-utils";
 import { BigNumber, constants } from "ethers";
 import { Evt } from "evt";
-import { ResultAsync } from "neverthrow";
+import { errAsync, ResultAsync } from "neverthrow";
 
 import { getSdk, GetSenderTransactionsQuery, Sdk, TransactionStatus } from "./graphqlsdk";
 
@@ -24,12 +24,14 @@ export class SubgraphError extends NxtpError {
   static readonly type = "SubgraphError";
   static readonly reasons = {
     SDKError: "Subgraph SDK error",
+    NoSDK: "No SDK",
   };
 
   constructor(
     public readonly message: Values<typeof SubgraphError.reasons> | string,
     public readonly context: {
       sdkError?: NxtpErrorJson;
+      chainId: number;
       methodId: string;
       method: string;
     },
@@ -44,7 +46,7 @@ export class SubgraphError extends NxtpError {
  * @param transaction Subgraph data
  * @returns Properly formatted TransactionData
  */
-const convertTransactionToTxData = (transaction: any): TransactionData => {
+export const convertTransactionToTxData = (transaction: any): TransactionData => {
   return {
     user: transaction.user.id,
     router: transaction.router.id,
@@ -145,10 +147,10 @@ export class Subgraph {
   private subgraphLoop() {
     const method = "startLoop";
     const methodId = getUuid();
-    Object.keys(this.chainConfig).forEach(async (cId) => {
-      const chainId = parseInt(cId);
-      const sdk: Sdk = this.sdks[chainId];
-      setInterval(async () => {
+    setInterval(async () => {
+      Object.keys(this.chainConfig).forEach(async (cId) => {
+        const chainId = parseInt(cId);
+        const sdk: Sdk = this.sdks[chainId];
         // get all sender prepared txs
         let allSenderPrepared: GetSenderTransactionsQuery;
         try {
@@ -159,7 +161,7 @@ export class Subgraph {
           });
         } catch (err) {
           this.logger.error(
-            { method, methodId, error: jsonifyError(err) },
+            { method, methodId, chainId, error: jsonifyError(err) },
             "Error in sdk.GetSenderTransactions, aborting loop interval",
           );
           return;
@@ -255,8 +257,8 @@ export class Subgraph {
             });
           }
         });
-      }, this.pollInterval);
-    });
+      });
+    }, this.pollInterval);
   }
 
   /**
@@ -296,7 +298,12 @@ export class Subgraph {
         transactionId: transactionId.toLowerCase() + "-" + user.toLowerCase() + "-" + this.routerAddress.toLowerCase(),
       }),
       (err) =>
-        new SubgraphError(SubgraphError.reasons.SDKError, { method, methodId, sdkError: jsonifyError(err as Error) }),
+        new SubgraphError(SubgraphError.reasons.SDKError, {
+          method,
+          methodId,
+          sdkError: jsonifyError(err as Error),
+          chainId,
+        }),
     ).map(({ transaction }) => {
       return transaction
         ? {
@@ -339,12 +346,20 @@ export class Subgraph {
     const method = this.getRouterShares.name;
     const methodId = getUuid();
     const sdk: Sdk = this.sdks[chainId];
+    if (!sdk) {
+      return errAsync(new SubgraphError(SubgraphError.reasons.SDKError, { method, methodId, chainId }));
+    }
     const assetBalanceId = `${assetId.toLowerCase()}-${this.routerAddress.toLowerCase()}`;
     return ResultAsync.fromPromise(
       sdk.GetAssetBalance({ assetBalanceId }),
       (err) =>
-        new SubgraphError(SubgraphError.reasons.SDKError, { method, methodId, sdkError: jsonifyError(err as Error) }),
-    ).map((res) => (res.assetBalance?.shares ? BigNumber.from(res.assetBalance?.shares) : constants.Zero));
+        new SubgraphError(SubgraphError.reasons.SDKError, {
+          method,
+          methodId,
+          sdkError: jsonifyError(err as Error),
+          chainId,
+        }),
+    ).map((res) => (res.assetBalance?.amount ? BigNumber.from(res.assetBalance?.amount) : constants.Zero));
   }
 
   // Listener methods

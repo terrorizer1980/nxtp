@@ -56,6 +56,16 @@ const config: HardhatUserConfig = {
       saveDeployments: false,
       url: urlOverride || "http://localhost:8545",
     },
+    local_1337: {
+      accounts: { mnemonic },
+      chainId: 1337,
+      url: urlOverride || "http://localhost:8545",
+    },
+    local_1338: {
+      accounts: { mnemonic },
+      chainId: 1338,
+      url: urlOverride || "http://localhost:8546",
+    },
     mainnet: {
       accounts: { mnemonic },
       chainId: 1,
@@ -76,6 +86,11 @@ const config: HardhatUserConfig = {
       chainId: 42,
       url: urlOverride || "http://localhost:8545",
     },
+    chapel: {
+      accounts: { mnemonic },
+      chainId: 97,
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+    },
     matic: {
       accounts: { mnemonic },
       chainId: 137,
@@ -84,17 +99,12 @@ const config: HardhatUserConfig = {
     mumbai: {
       accounts: { mnemonic },
       chainId: 80001,
-      url: urlOverride || "https://rpc-mumbai.matic.today",
+      url: "https://rpc-mumbai.matic.today",
     },
-    local_1337: {
+    "arbitrum-rinkeby": {
       accounts: { mnemonic },
-      chainId: 1337,
-      url: urlOverride || "http://localhost:8545",
-    },
-    local_1338: {
-      accounts: { mnemonic },
-      chainId: 1338,
-      url: urlOverride || "http://localhost:8546",
+      chainId: 421611,
+      url: "https://rinkeby.arbitrum.io/rpc",
     },
   },
 };

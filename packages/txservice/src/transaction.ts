@@ -3,10 +3,9 @@ import { BaseLogger } from "pino";
 import { getUuid } from "@connext/nxtp-utils";
 
 import { TransactionServiceConfig } from "./config";
-// import { ChainError } from "./error";
 import { ChainRpcProvider } from "./provider";
-import { FullTransaction, GasPrice, MinimalTransaction } from "./types";
-import { TransactionReplaced, TransactionReverted, TransactionServiceFailure } from "./error";
+import { FullTransaction, GasPrice, WriteTransaction } from "./types";
+import { AlreadyMined, TransactionReplaced, TransactionReverted, TransactionServiceFailure } from "./error";
 
 /**
  * @classdesc Handles the sending of a single transaction and making it easier to monitor the execution/rebroadcast
@@ -28,11 +27,8 @@ export class Transaction {
       ...this.minTx,
       gasPrice: this.gasPrice.get(),
       nonce: this.nonce,
+      gasLimit: this.gasPrice.limit,
     };
-  }
-
-  public get latestResponse(): providers.TransactionResponse {
-    return this.responses[this.responses.length - 1];
   }
 
   // Internal nonce tracking.
@@ -87,7 +83,7 @@ export class Transaction {
   private constructor(
     private readonly logger: BaseLogger,
     private readonly provider: ChainRpcProvider,
-    private readonly minTx: MinimalTransaction,
+    private readonly minTx: WriteTransaction,
     private readonly config: TransactionServiceConfig,
     private readonly gasPrice: GasPrice,
   ) {}
@@ -98,21 +94,48 @@ export class Transaction {
    *
    * @param logger The pino.BaseLogger instance we use for logging.
    * @param provider The ChainRpcProvider instance we use for interfacing with the chain.
-   * @param minTx The minimum transaction data required to send a transaction.
+   * @param tx The minimum transaction data required to send a transaction.
    * @param config The overall shared config of TransactionService.
    */
   static async create(
     logger: BaseLogger,
     provider: ChainRpcProvider,
-    minTx: MinimalTransaction,
+    tx: WriteTransaction,
     config: TransactionServiceConfig,
   ): Promise<Transaction> {
-    const result = await provider.getGasPrice();
+    let gasLimit: BigNumber;
+    let result = await provider.estimateGas(tx);
+    if (result.isErr()) {
+      if (result.error instanceof TransactionReverted) {
+        throw result.error;
+      }
+      logger.warn(
+        {
+          method: Transaction.create.name,
+          transaction: tx,
+          error: result.error,
+        },
+        "Estimate gas failed due to an unexpected error.",
+      );
+      throw result.error;
+    } else {
+      gasLimit = result.value;
+    }
+
+    result = await provider.getGasPrice();
     if (result.isErr()) {
       throw result.error;
     }
-    const gasPrice = new GasPrice(result.value, BigNumber.from(config.gasLimit));
-    return new Transaction(logger, provider, minTx, config, gasPrice);
+    const gasPrice = new GasPrice(result.value, gasLimit);
+    return new Transaction(logger, provider, tx, config, gasPrice);
+  }
+
+  /**
+   * Specifies whether the transaction has been submitted.
+   * @returns boolean indicating whether the transaction is submitted.
+   */
+  public didSubmit(): boolean {
+    return this.responses.length > 0;
   }
 
   /**
@@ -129,7 +152,7 @@ export class Transaction {
    *
    * @returns A TransactionResponse once the transaction has been mined
    */
-  public async submit() {
+  public async submit(): Promise<providers.TransactionResponse> {
     const method = this.submit.name;
 
     // Check to make sure that, if this is a replacement tx, the replacement gas is higher.
@@ -151,12 +174,30 @@ export class Transaction {
     this._attempt++;
 
     // Send the tx.
-    const result = await this.provider.sendTransaction(this.data);
+    let result = await this.provider.sendTransaction(this.data);
 
-    // If we experienced an error, throw.
+    // If the error is a NonceExpired error and we haven't submitted yet, we want to keep
+    // trying to send here. Reason being that it may take a few tries to get the correct
+    // transaction count back from the provider.
+    if (!this.didSubmit()) {
+      let nonceErrorCount = 0;
+      while (
+        result.isErr() &&
+        result.error instanceof AlreadyMined &&
+        result.error.reason === AlreadyMined.reasons.NonceExpired &&
+        nonceErrorCount < this.config.maxNonceErrorCount
+      ) {
+        nonceErrorCount++;
+        this.logger.warn({ id: this.id, nonceErrorCount }, "Received nonce expired error.");
+        result = await this.provider.sendTransaction(this.data);
+      }
+    }
+
+    // If we end up with a different error, it should be thrown here.
     if (result.isErr()) {
       throw result.error;
     }
+
     const response = result.value;
 
     // Save nonce if applicable; if not, this is a validation step to ensure nonce
@@ -165,35 +206,40 @@ export class Transaction {
 
     // Add this response to our local response history.
     this.responses.push(response);
+    return response;
   }
 
   /**
    * Makes an attempt to confirm this transaction, waiting up to a designated period to achieve
-   * a desired number of confirmation blocks. If confirmation times out, throws ChainError.ConfirmationTimeout.
-   * If all txs, including replacements, are reverted, throws ChainError.TxReverted.
+   * a desired number of confirmation blocks. If confirmation times out, throws TimeoutError.
+   * If all txs, including replacements, are reverted, throws TransactionReverted.
    *
    * @privateRemarks
    *
    * Ultimately, we should see 1 tx accepted and confirmed, and the rest - if any - rejected (due to
    * replacement) and confirmed. If at least 1 tx has been accepted and received 1 confirmation, we will
    * wait an extended period for the desired number of confirmations. If no further confirmations appear
-   * (which is extremely unlikely), we throw a ChainError.NotEnoughConfirmations.
+   * (which is extremely unlikely), we throw a TransactionServiceFailure.NotEnoughConfirmations.
    *
    * @returns A TransactionReceipt (or undefined if it did not confirm).
    */
-  public async confirm() {
+  public async confirm(): Promise<providers.TransactionReceipt> {
     const method = this.confirm.name;
 
     // Ensure we've submitted at least 1 tx.
-    if (this.responses.length === 0) {
+    if (!this.didSubmit()) {
       throw new TransactionServiceFailure("Transaction confirm was called, but no transaction has been sent.", {
         method,
+        id: this.id,
       });
     }
 
     // Ensure we don't already have a receipt.
     if (this.receipt != null) {
-      throw new TransactionServiceFailure("Transaction confirm was called, but we already have receipt.", { method });
+      throw new TransactionServiceFailure("Transaction confirm was called, but we already have receipt.", {
+        method,
+        id: this.id,
+      });
     }
 
     // Now we attempt to confirm the first response among our attempts. If it fails due to replacement,
@@ -224,14 +270,31 @@ export class Transaction {
       this.receipt = result.value;
     }
 
+    // Sanity checks.
     if (this.receipt == null) {
       // Receipt is undefined or null. This normally should never occur.
       throw new TransactionServiceFailure("Unable to obtain receipt: ethers responded with null.", {
         method,
         receipt: this.receipt,
+        hash: response.hash,
+        id: this.id,
       });
     } else if (this.receipt.status === 0) {
-      throw new TransactionServiceFailure("Transaction was reverted but TransactionReverted error was not thrown.");
+      // This should never occur. We should always get a TransactionReverted error in this event.
+      throw new TransactionServiceFailure("Transaction was reverted but TransactionReverted error was not thrown.", {
+        method,
+        receipt: this.receipt,
+        hash: response.hash,
+        id: this.id,
+      });
+    } else if (this.receipt.confirmations < 1) {
+      // Again, should never occur.
+      throw new TransactionServiceFailure("Receipt did not have any confirmations, should have timed out!", {
+        method,
+        receipt: this.receipt,
+        hash: response.hash,
+        id: this.id,
+      });
     }
 
     if (this.receipt.confirmations < this.provider.confirmationsRequired) {
@@ -240,10 +303,18 @@ export class Transaction {
       const result = await this.provider.confirmTransaction(response, undefined, 60_000 * 20);
       if (result.isErr()) {
         // No errors should occur during this confirmation attempt.
-        throw result.error;
+        throw new TransactionServiceFailure(TransactionServiceFailure.reasons.NotEnoughConfirmations, {
+          method,
+          receipt: this.receipt,
+          error: result.error,
+          hash: response.hash,
+          id: this.id,
+        });
       }
       this.receipt = result.value;
     }
+
+    return this.receipt;
   }
 
   /**

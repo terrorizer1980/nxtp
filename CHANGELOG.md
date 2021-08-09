@@ -1,8 +1,27 @@
-# NXTP Changelog
+# Vector Changelog
 
 ## Next Release
 
-- [sdk] Add `transactionReceipt` to all applicable events.
+## 0.0.16
+
+- [sdk] Fix cancellation.
+- [sdk] Change method name from `cancelExpired` to `cancel`.
+- [sdk, router] Add `network` param for abstracting messaging configuration.
+- [sdk] Rename `startTransfer` and `finishTransfer` to `prepareTransfer` and `fulfillTransfer`.
+
+## 0.0.15
+
+- [txservice] Fix in gas price for Optimism.
+- [contracts] Deployments for Mumbai, Optimism Kovan, Arbitrum Rinkeby.
+
+## 0.0.14
+
+- [sdk] Add `transactionHash` to all applicable events.
+- [contracts] Deploy to all chains.
+
+## 0.0.13
+
+- [sdk] Add subgraph to the frontend for transaction status tracking.
 
 ## 0.0.12
 

@@ -63,13 +63,11 @@ These are **important** and everyone must adhere to them:
 
 1. Follow the Unix philosophy for every file and function. For instance, a `listeners.ts` file should _only_ handle setting up listeners and then route to a corresponding `handler`. This keeps all business logic consolidated, making it easy to test and read.
 
-1. Every file and function should be unit tested. The scope of this codebase is very small, so it shouldn't be difficult to do this.
+2. Every file and function should be unit tested. The scope of this codebase is very small, so it shouldn't be difficult to do this.
 
-1. Build for future hires and contributors. Every function should have a top-level comment that describes what it does, and internal comments breaking down each step. Files should have comments delineating their reponsibilities. Remember: Good code is **never surprising**.
+3. Build for future hires and contributors. Every function should have a top-level comment that describes what it does, and internal comments breaking down each step. Files should have comments delineating their reponsibilities. Remember: Good code is **never surprising**.
 
 # Local Dev
-
-## Yarn Setup
 
 We are using a Yarn 2 Workspace-based monorepo structure. The individual workspaces are within the `packages/` directory. This repo structure was heavily inspired by [create-ts-project](https://github.com/jtbennett/create-ts-project). The goal is to minimize 3rd party dependencies, and expose the configurations so that they can be transparently managed.
 
@@ -91,7 +89,7 @@ You should be able to do everything from the root and not need to go into the in
 
 `yarn workspace @connext/nxtp-txservice add ethers`
 
-### First time setup
+## First time setup
 
 Make sure you are on the latest yarn version:
 
@@ -99,7 +97,7 @@ Make sure you are on the latest yarn version:
 
 Try running `yarn` to update everything. If you have issues, try deleting `node_modules` and `yarn.lock`. After deleting `yarn.lock` run `touch yarn.lock` since it does not like if there is no lock file.
 
-### Common Tasks
+## Common Tasks
 
 - `yarn`: Install deps, create symlinks, hoist packages.
 - `yarn build:all`: Build all packages.
@@ -112,7 +110,7 @@ Run test-ui:
 
 - `yarn workspace @connext/nxtp-test-ui dev` - Runs test-ui in hot-reload mode.
 
-### Running Tests
+## Running Test
 
 - `yarn`: Install deps, create symlinks, hoist packages.
 - `yarn build:all`: Build all packages.
@@ -123,7 +121,7 @@ Run test:
 
 - `yarn workspace @connext/nxtp-contracts test` - Runs test.
 
-### Adding Packages
+## Adding Packages
 
 To add a new package that can be shared by the rest of the repo, you can use some convenience scripts that we have installed:
 
@@ -196,7 +194,16 @@ yarn workspace @connext/nxtp-integration docker:messaging:up
   "logLevel": "info",
   "natsUrl": "nats://localhost:4222",
   "authUrl": "http://localhost:5040",
-  "mnemonic": "..." // use your own mnemonic!
+  "mnemonic": "...", // use your own mnemonic!
+  "swapPools": [
+    {
+      "name": "TEST",
+      "assets": [
+        { "chainId": 4, "assetId": "0x9aC2c46d7AcC21c881154D57c0Dc1c55a3139198" },
+        { "chainId": 5, "assetId": "0x8a1Cad3703E0beAe0e0237369B4fcD04228d1682" }
+      ]
+    }
+  ]
 }
 ```
 
@@ -209,7 +216,7 @@ yarn workspace @connext/nxtp-router dev
 - Create `packages/test-ui/.env`. Configure for live chains and the desired messaging:
 
 ```sh
-REACT_APP_CHAIN_CONFIG='{"4":{"provider":["https://rinkeby.infura.io/v3/...","https://rinkeby.infura.io/v3/...","https://rinkeby.infura.io/v3/..."]},"5":{"provider":["https://goerli.infura.io/v3/af2f28bdb95d40edb06226a46106f5f9","https://goerli.infura.io/v3/...","https://goerli.infura.io/v3/..."]}}'
+REACT_APP_CHAIN_CONFIG='{"4":{"provider":["https://rinkeby.infura.io/v3/...","https://rinkeby.infura.io/v3/...","https://rinkeby.infura.io/v3/..."]},"5":{"provider":["https://goerli.infura.io/v3/...","https://goerli.infura.io/v3/...","https://goerli.infura.io/v3/..."]}}'
 REACT_APP_SWAP_CONFIG='[{"name":"TEST","assets":{"4":"0x9aC2c46d7AcC21c881154D57c0Dc1c55a3139198","5":"0x8a1Cad3703E0beAe0e0237369B4fcD04228d1682"}}]'
 #REACT_APP_NATS_URL_OVERRIDE=ws://localhost:4221
 #REACT_APP_AUTH_URL_OVERRIDE=http://localhost:5040
@@ -237,20 +244,29 @@ The above commands run local chains and messaging and take care of local deploym
     "1337": {
       "providers": ["http://localhost:8545"],
       "confirmations": 1,
-      "subgraph": "http://localhost:8000/subgraphs/name/connext/nxtp",
+      "subgraph": "http://localhost:8010/subgraphs/name/connext/nxtp",
       "transactionManagerAddress": "0x8CdaF0CD259887258Bc13a92C0a6dA92698644C0"
     },
     "1338": {
       "providers": ["http://localhost:8546"],
       "confirmations": 1,
-      "subgraph": "http://localhost:9000/subgraphs/name/connext/nxtp",
+      "subgraph": "http://localhost:9010/subgraphs/name/connext/nxtp",
       "transactionManagerAddress": "0x8CdaF0CD259887258Bc13a92C0a6dA92698644C0"
     }
   },
   "logLevel": "info",
   "natsUrl": "nats://localhost:4222",
   "authUrl": "http://localhost:5040",
-  "mnemonic": "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
+  "mnemonic": "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat",
+  "swapPools": [
+    {
+      "name": "TEST",
+      "assets": [
+        { "chainId": 1337, "assetId": "0xF12b5dd4EAD5F743C6BaA640B0216200e89B60Da" },
+        { "chainId": 1338, "assetId": "0xF12b5dd4EAD5F743C6BaA640B0216200e89B60Da" }
+      ]
+    }
+  ]
 }
 ```
 

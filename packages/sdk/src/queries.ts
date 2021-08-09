@@ -35,6 +35,9 @@ export const getSenderTransactionsQuery = gql`
       prepareCaller
       fulfillCaller
       cancelCaller
+      prepareTransactionHash
+      fulfillTransactionHash
+      cancelTransactionHash
     }
   }
 `;
@@ -74,6 +77,9 @@ export const getReceiverTransactionsQuery = gql`
       prepareCaller
       fulfillCaller
       cancelCaller
+      prepareTransactionHash
+      fulfillTransactionHash
+      cancelTransactionHash
     }
   }
 `;
@@ -112,12 +118,15 @@ export const getTransactionByIdQuery = gql`
       prepareCaller
       fulfillCaller
       cancelCaller
+      prepareTransactionHash
+      fulfillTransactionHash
+      cancelTransactionHash
     }
   }
 `;
 
 export const getTransactionsByIdsQuery = gql`
-  query GetTransactions($transactionIds: [Bytes!], $status: TransactionStatus) {
+  query GetTransactions($transactionIds: [Bytes!]) {
     transactions(where: { transactionId_in: $transactionIds }) {
       id
       status
@@ -141,12 +150,18 @@ export const getTransactionsByIdsQuery = gql`
       shares
       expiry
       preparedBlockNumber
+      encryptedCallData
+      encodedBid
+      bidSignature
       relayerFee
       signature
       callData
       prepareCaller
       fulfillCaller
       cancelCaller
+      prepareTransactionHash
+      fulfillTransactionHash
+      cancelTransactionHash
     }
   }
 `;

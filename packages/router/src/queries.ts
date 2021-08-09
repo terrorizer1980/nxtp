@@ -38,6 +38,9 @@ export const getSenderTransactionsQuery = gql`
         prepareCaller
         fulfillCaller
         cancelCaller
+        prepareTransactionHash
+        fulfillTransactionHash
+        cancelTransactionHash
       }
     }
   }
@@ -79,6 +82,9 @@ export const getReceiverTransactionsQuery = gql`
         prepareCaller
         fulfillCaller
         cancelCaller
+        prepareTransactionHash
+        fulfillTransactionHash
+        cancelTransactionHash
       }
     }
   }
@@ -118,6 +124,9 @@ export const getTransactionByIdQuery = gql`
       prepareCaller
       fulfillCaller
       cancelCaller
+      prepareTransactionHash
+      fulfillTransactionHash
+      cancelTransactionHash
     }
   }
 `;
@@ -153,6 +162,9 @@ export const getTransactionsByIdsQuery = gql`
       prepareCaller
       fulfillCaller
       cancelCaller
+      prepareTransactionHash
+      fulfillTransactionHash
+      cancelTransactionHash
     }
   }
 `;
