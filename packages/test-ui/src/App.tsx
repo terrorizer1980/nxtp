@@ -478,11 +478,8 @@ function App(): React.ReactElement | null {
                   // Use receiver side info by default
                   const variant = tx.crosschainTx.receiving ?? tx.crosschainTx.sending;
                   return {
-<<<<<<< HEAD
                     amount: tx.txData.shares,
-=======
-                    amount: variant.amount,
->>>>>>> main
+                    // amount: variant.amount,
                     status: tx.status,
                     sendingChain: tx.crosschainTx.invariant.sendingChainId.toString(),
                     receivingChain: tx.crosschainTx.invariant.receivingChainId.toString(),
