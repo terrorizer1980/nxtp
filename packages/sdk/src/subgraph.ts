@@ -162,13 +162,13 @@ export class Subgraph {
               );
               const sendingTxData = convertTransactionToTxData(senderTx);
               const {
-                amount: sendingAmount,
+                shares: sendingAmount,
                 preparedBlockNumber: sendingPreparedBlockNumber,
                 expiry: sendingExpiry,
                 ...invariant
               } = sendingTxData;
               const sendingVariant: VariantTransactionData = {
-                amount: sendingAmount,
+                shares: sendingAmount,
                 preparedBlockNumber: sendingPreparedBlockNumber,
                 expiry: sendingExpiry,
               };
@@ -180,6 +180,7 @@ export class Subgraph {
 
                 const common = {
                   bidSignature: senderTx.bidSignature,
+                  amount: senderTx.amount,
                   caller: senderTx.prepareCaller,
                   encodedBid: senderTx.encodedBid,
                   encryptedCallData: senderTx.encryptedCallData,
@@ -212,13 +213,13 @@ export class Subgraph {
                   encryptedCallData: correspondingReceiverTx.encryptedCallData,
                   transactionHash: correspondingReceiverTx.prepareTransactionHash,
                 };
-                const { amount, expiry, preparedBlockNumber, ...invariant } = receiverData;
+                const { shares, expiry, preparedBlockNumber, ...invariant } = receiverData;
 
                 const tx: ActiveTransaction = {
                   ...common,
                   crosschainTx: {
                     invariant,
-                    receiving: { amount, expiry, preparedBlockNumber },
+                    receiving: { shares, expiry, preparedBlockNumber },
                     sending: sendingVariant,
                   },
                   status: SubgraphEvents.ReceiverTransactionPrepared,

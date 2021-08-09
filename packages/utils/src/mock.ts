@@ -17,7 +17,7 @@ import {
   CancelParams,
 } from "./index";
 
-export const fakeTxReceipt = {
+export const fakeTxReceipt = ({
   blockHash: "foo",
   blockNumber: 1,
   byzantium: true,
@@ -31,7 +31,7 @@ export const fakeTxReceipt = {
   logs: [],
   logsBloom: "",
   transactionIndex: 1,
-} as unknown as providers.TransactionReceipt;
+} as unknown) as providers.TransactionReceipt;
 
 export const invariantDataMock: InvariantTransactionData = {
   user: mkAddress("0xa"),
@@ -48,7 +48,7 @@ export const invariantDataMock: InvariantTransactionData = {
 };
 
 export const variantDataMock: VariantTransactionData = {
-  amount: "123",
+  shares: "123",
   expiry: Math.floor(Date.now() / 1000) + 24 * 3600 * 3,
   preparedBlockNumber: 1234,
 };
@@ -64,7 +64,7 @@ export const auctionBidMock: AuctionBid = {
   callTo: invariantDataMock.callTo,
   callDataHash: invariantDataMock.callDataHash,
   transactionId: invariantDataMock.transactionId,
-  amount: variantDataMock.amount,
+  amount: variantDataMock.shares,
   sendingChainTxManagerAddress: mkAddress("0x1"),
   receivingChainTxManagerAddress: mkAddress("0x2"),
   expiry: variantDataMock.expiry,
@@ -84,7 +84,7 @@ export const transactionSubgraphMock: any = {
   sendingChainId: txDataMock.sendingChainId,
   sendingAssetId: txDataMock.sendingAssetId,
   sendingChainFallback: txDataMock.sendingChainFallback,
-  amount: txDataMock.amount,
+  amount: txDataMock.shares,
   receivingChainId: txDataMock.receivingChainId,
   receivingAssetId: txDataMock.receivingAssetId,
   receivingAddress: txDataMock.receivingAddress,
@@ -98,6 +98,7 @@ export const transactionSubgraphMock: any = {
 export const senderPrepareDataMock: TransactionPreparedEvent = {
   txData: txDataMock,
   caller: mkAddress("0xf"),
+  amount: txDataMock.shares,
   encryptedCallData: mkSig("0xabc"),
   encodedBid: encodeAuctionBid(auctionBidMock),
   bidSignature: mkSig("0xeee"),
