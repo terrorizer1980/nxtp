@@ -133,6 +133,9 @@ export class SdkAgent {
     // Create sdk
     const agent = new SdkAgent(address, chainProviders, signer, logger, natsUrl, authUrl, messaging);
 
+    // Connect sdk
+    await agent.sdk.connectMessagingIfNeeded();
+
     // Parrot all events
     agent.setupListeners();
 
@@ -164,7 +167,6 @@ export class SdkAgent {
           fulfilling: true,
           address: this.address,
         });
-        process.exit(1);
       }
       this.evts.TransactionCompleted.post({
         transactionId: data.txData.transactionId,
@@ -272,9 +274,8 @@ export class SdkAgent {
           transactionId: bid.transactionId,
           address: this.address,
           timestamp: Date.now(),
-          error: e.message,
+          error: jsonifyError(e),
         });
-        process.exit(1);
       }
     });
   }
