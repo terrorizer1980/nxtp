@@ -1,4 +1,4 @@
-import { ERC20Abi, NxtpError } from "@connext/nxtp-utils";
+import { ERC20Abi, getRandomBytes32, NxtpError } from "@connext/nxtp-utils";
 import axios from "axios";
 import { BigNumber, Signer, Wallet, providers, constants, Contract } from "ethers";
 import { okAsync, ResultAsync } from "neverthrow";
@@ -274,7 +274,13 @@ export class ChainRpcProvider {
    */
   public getBalance(address: string): ResultAsync<BigNumber, TransactionError> {
     return this.resultWrapper<BigNumber>(async () => {
-      return await this.provider.getBalance(address);
+      // Logging here around the getBalance call for debugging purposes.
+      const method = this.getBalance.name;
+      const methodId = getRandomBytes32();
+      this.logger.debug({ method, methodId, address }, "Getting balance for address");
+      const result = await this.provider.getBalance(address);
+      this.logger.debug({ method, methodId, address, result }, "Got balance for address");
+      return result;
     });
   }
 

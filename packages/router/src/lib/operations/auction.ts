@@ -155,6 +155,7 @@ export const newAuction = async (
     });
   }
 
+  logger.debug({ method, methodId }, "Retrieving balances...");
   const [senderBalance, receiverBalance] = await Promise.all([
     txService.getBalance(sendingChainId, wallet.address),
     txService.getBalance(receivingChainId, wallet.address),
