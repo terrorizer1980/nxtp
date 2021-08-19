@@ -38,10 +38,11 @@ import {
   calculateExchangeWad,
   ERC20Abi,
   TransactionDataSchema,
+  delay,
 } from "@connext/nxtp-utils";
 import pino, { BaseLogger } from "pino";
 import { Type, Static } from "@sinclair/typebox";
-import { errAsync, okAsync, ResultAsync } from "neverthrow";
+import { errAsync, ok, okAsync, ResultAsync } from "neverthrow";
 
 import {
   TransactionManager,
@@ -340,6 +341,8 @@ export class NxtpSdk {
   private readonly messaging: UserNxtpNatsMessagingService;
   private readonly subgraph: Subgraph;
 
+  private messagingBearerToken: string | undefined = undefined;
+
   constructor(
     private readonly chainConfig: {
       [chainId: number]: {
@@ -457,9 +460,13 @@ export class NxtpSdk {
    *
    * @returns The used bearer token
    */
-  public async connectMessaging(bearerToken?: string): Promise<string> {
-    const token = await this.messaging.connect(bearerToken);
-    return token;
+  public async connectMessagingIfNeeded(): Promise<string> {
+    if (this.messagingBearerToken) {
+      // Only set once messaging is connected. should never reconnect messaging
+      return this.messagingBearerToken;
+    }
+    this.messagingBearerToken = await this.messaging.connect();
+    return this.messagingBearerToken;
   }
 
   /**
@@ -621,10 +628,6 @@ export class NxtpSdk {
       }
     }
 
-    if (!this.messaging.isConnected()) {
-      await this.messaging.connect();
-    }
-
     const { inbox, evt } = getAuctionRequestContext();
 
     await this.messaging.subscribeToAuctionResponse(inbox, (data, err) => {
@@ -637,6 +640,8 @@ export class NxtpSdk {
 
       evt.post(data);
     });
+
+    await delay(1_000);
 
     const auctionBidsPromise = new Promise<AuctionResponse[]>(async (resolve, reject) => {
       if (dryRun) {
@@ -1048,20 +1053,7 @@ export class NxtpSdk {
         this.logger.info({ method, methodId, signature }, "Generated signature");
         signature = _signature;
         this.evts.ReceiverPrepareSigned.post({ signature, transactionId: txData.transactionId, signer: signerAddress });
-        if (!this.messaging.isConnected()) {
-          return ResultAsync.fromPromise(
-            this.messaging.connect(),
-            (err) =>
-              new NxtpSdkError(NxtpSdkError.reasons.MessagingError, {
-                method,
-                methodId,
-                transactionId: txData.transactionId,
-                messagingError: jsonifyError(err as Error),
-                details: "Failed to connect",
-              } as any),
-          );
-        }
-        return okAsync(undefined);
+        return ok(undefined);
       })
       .andThen(() => {
         this.logger.info({ method, methodId, transactionId: txData.transactionId, relayerFee }, "Preparing fulfill tx");
@@ -1094,10 +1086,6 @@ export class NxtpSdk {
 
         return ResultAsync.fromPromise(
           new Promise<MetaTxResponse>(async (resolve, reject) => {
-            if (!this.messaging.isConnected()) {
-              await this.messaging.connect();
-            }
-
             await this.messaging.subscribeToMetaTxResponse(responseInbox, (data, err) => {
               this.logger.info({ method, methodId, data, err }, "MetaTx response received");
               if (err || !data) {
@@ -1107,6 +1095,8 @@ export class NxtpSdk {
               this.logger.info({ method, methodId, responseInbox, data }, "Fulfill metaTx response received");
               return resolve(data);
             });
+
+            await delay(1_000);
 
             await this.messaging.publishMetaTxRequest(
               {
