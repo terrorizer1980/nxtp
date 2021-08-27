@@ -15,6 +15,7 @@ export {
   SenderChainDataInvalid,
   ParamsInvalid,
   BidExpiryInvalid,
+  AmountInvalid,
 } from "./prepare";
 
 export { NoChainConfig, NotEnoughRelayerFee } from "./fulfill";

@@ -18,3 +18,4 @@ export * from "./subgraph";
 export * from "./asset";
 export * from "./chainData";
 export * from "./time";
+export * from "./gasEstimates";

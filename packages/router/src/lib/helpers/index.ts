@@ -1,5 +1,4 @@
 export {
-  getReceiverAmount,
   getReceiverExpiryBuffer,
   recoverAuctionBid,
   validExpiryBuffer,
@@ -9,4 +8,4 @@ export {
 
 export { getBidExpiry, AUCTION_EXPIRY_BUFFER } from "./auction";
 
-export { getNtpTimeSeconds } from "./shared";
+export { getNtpTimeSeconds, getReceiverAmount } from "./shared";
